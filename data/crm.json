@@ -1,0 +1,128 @@
+{
+  "company": {
+    "name": "Pumpen GmbH",
+    "address": "Industriestraße 42, 50672 Köln, Deutschland",
+    "founded": 1987,
+    "employees": 85,
+    "specialization": "Industriepumpen für verschiedene Anwendungen",
+    "contact": {
+      "phone": "+49 89 555-8900",
+      "email": "info@pumpen-co.de",
+      "website": "www.pumpen-co.de"
+    }
+  },
+  "products": [
+    {
+      "sku": "KW-100",
+      "name": "Kleinwasser",
+      "type": "Wasserpumpe",
+      "description": "Kompakte Wasserpumpe für kleinere Anlagen und Werkstätten",
+      "specifications": {
+        "max_flow": "50 L/min",
+        "max_pressure": "3.5 bar",
+        "power": "1.1 kW",
+        "inlet_size": "1 Zoll",
+        "outlet_size": "3/4 Zoll",
+        "max_temp": "60°C",
+        "weight": "12 kg"
+      },
+      "applications": ["Werkstattversorgung", "Kleine Produktionsanlagen", "Reinigungssysteme"]
+    },
+    {
+      "sku": "GW-300", 
+      "name": "Großwasser",
+      "type": "Wasserpumpe",
+      "description": "Hochleistungs-Wasserpumpe für industrielle Anwendungen",
+      "specifications": {
+        "max_flow": "150 L/min",
+        "max_pressure": "2.8 bar", 
+        "power": "3.0 kW",
+        "inlet_size": "2 Zoll",
+        "outlet_size": "1.5 Zoll",
+        "max_temp": "80°C",
+        "weight": "35 kg",
+        "max_inlet_height": "1.5 m"
+      },
+      "applications": ["Industrielle Produktionslinien", "Kühlkreisläufe", "Prozesswasser"]
+    },
+    {
+      "sku": "VP-200",
+      "name": "ViskoPro", 
+      "type": "Viskosepumpe",
+      "description": "Spezialpumpe für dickflüssige Medien und zähflüssige Substanzen",
+      "specifications": {
+        "max_flow": "75 L/min",
+        "max_pressure": "4.2 bar",
+        "power": "2.2 kW",
+        "inlet_size": "1.5 Zoll",
+        "outlet_size": "1.25 Zoll",
+        "max_temp": "90°C",
+        "max_viscosity": "10000 cP",
+        "weight": "28 kg"
+      },
+      "applications": ["Lebensmittelindustrie", "Chemische Prozesse", "Farben und Lacke"]
+    }
+  ],
+  "customers": [
+    {
+      "id": "C-ACME",
+      "name": "Acme Maschinenbau GmbH",
+      "address": "Technikstraße 15, 70173 Stuttgart, Deutschland",
+      "contact_person": {
+        "name": "Herr Klaus Müller",
+        "title": "Technischer Leiter",
+        "email": "k.mueller@acme-maschinenbau.de",
+        "phone": "+49 711 555-1234"
+      },
+      "company_info": {
+        "founded": 2008,
+        "employees": 45,
+        "business": "Maschinenbau und Automatisierungstechnik"
+      },
+      "purchases": [
+        {
+          "sku": "KW-100",
+          "quantity": 2,
+          "purchase_date": "2022-03-15",
+          "installation_location": "Produktionslinie 1"
+        },
+        {
+          "sku": "GW-300", 
+          "quantity": 1,
+          "purchase_date": "2023-01-20",
+          "installation_location": "Produktionslinie 3"
+        }
+      ],
+      "customer_since": "2019",
+      "support_tier": "Premium",
+      "notes": "Großkunde mit mehreren Produktionslinien. Regelmäßige Wartungsverträge. Sehr technikaffin."
+    },
+    {
+      "id": "C-BIOV",
+      "name": "Biovisco Laboratorien GmbH",
+      "address": "Forschungspark 8, 69126 Heidelberg, Deutschland", 
+      "contact_person": {
+        "name": "Dr. Sarah Weber",
+        "title": "Leiterin Verfahrenstechnik",
+        "email": "s.weber@biovisco-labs.de",
+        "phone": "+49 6221 555-5678"
+      },
+      "company_info": {
+        "founded": 2015,
+        "employees": 28,
+        "business": "Biotechnologie und Labordienstleistungen"
+      },
+      "purchases": [
+        {
+          "sku": "VP-200",
+          "quantity": 1,
+          "purchase_date": "2023-06-10",
+          "installation_location": "Labor B - Viskositätstests"
+        }
+      ],
+      "customer_since": "2021",
+      "support_tier": "Standard",
+      "notes": "Spezialisiert auf hochviskose biologische Substanzen. Benötigt präzise technische Dokumentation."
+    }
+  ]
+}
