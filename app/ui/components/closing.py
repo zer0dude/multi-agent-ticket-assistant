@@ -268,17 +268,37 @@ def render_closing_notes_input(closing_state: ClosingWorkflowState, selected_tic
             closing_state.notes_data = notes
             
             st.success("✅ Notizen erfolgreich übermittelt!")
-            time.sleep(1)
-            st.rerun()
+            st.success("🤖 Starte automatische KI-Analyse...")
+            
+            # Build ticket context for AI generation
+            workflow_state = get_workflow_state()
+            selected_ticket = workflow_state.get('selected_ticket')
+            research_results = st.session_state.get('research_results')
+            planning_state = st.session_state.get('planning_workflow_state')
+            execution_state = st.session_state.get('execution_state')
+            
+            ticket_context = {
+                'ticket': selected_ticket,
+                'research_results': research_results,
+                'planning_results': planning_state.current_plan if planning_state else None,
+                'execution_results': execution_state
+            }
+            
+            # Automatically trigger question generation
+            generate_followup_questions(closing_state, ticket_context)
 
 
 def render_followup_questions_generation(closing_state: ClosingWorkflowState, ticket_context):
-    """Generate AI followup questions"""
+    """Generate AI followup questions - now automatic"""
     
     st.markdown("### 🤖 KI analysiert Vollständigkeit...")
     
-    if st.button("🧠 Nachfragen generieren", type="primary"):
+    # Automatically trigger if not already done (fallback for edge cases)
+    if not closing_state.followup_questions_generated:
+        st.info("🤖 Automatische KI-Analyse läuft...")
         generate_followup_questions(closing_state, ticket_context)
+    else:
+        st.success("✅ KI-Analyse abgeschlossen!")
 
 
 def generate_followup_questions(closing_state: ClosingWorkflowState, ticket_context):
