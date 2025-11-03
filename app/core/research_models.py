@@ -3,7 +3,7 @@ Pydantic models for structured research agent responses
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Any
 from enum import Enum
 
 class ConfidenceLevel(str, Enum):
@@ -55,11 +55,12 @@ class ResearchSummary(BaseModel):
     customer_status: str = Field(..., description="Summary of customer identification")
     technical_findings: str = Field(..., description="Key technical findings from manuals")
     historical_context: str = Field(..., description="Relevant historical ticket context")
-    probable_root_cause: Optional[str] = Field(None, description="Most likely root cause of the issue")
+    initial_cause_assessment: Optional[str] = Field(None, description="Initial assessment of possible cause (with uncertainty)")
     confidence_assessment: ConfidenceLevel = Field(..., description="Overall confidence in analysis")
-    recommended_next_steps: List[str] = Field(..., description="Recommended next steps for resolution")
-    open_questions: List[str] = Field(..., description="Questions that need human input")
+    confidence_explanation: str = Field(..., description="Explanation for confidence level")
     urgency_level: Literal["low", "medium", "high", "critical"] = Field(..., description="Recommended urgency level")
+    urgency_explanation: str = Field(..., description="Explanation for urgency level")
+    relevant_manuals: List[Dict[str, Any]] = Field(default_factory=list, description="List of manuals referenced in technical findings")
 
 class FullResearchResult(BaseModel):
     """Complete research results from all agents"""

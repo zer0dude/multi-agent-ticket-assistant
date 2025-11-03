@@ -387,11 +387,14 @@ def load_demo_data():
     try:
         if 'demo_data' not in st.session_state:
             crm_data, tickets, manuals, sops = load_all_data()
+            from app.core.data import load_closing_notes
+            closing_notes = load_closing_notes()
             st.session_state.demo_data = {
                 'crm': crm_data,
                 'tickets': tickets,
                 'manuals': manuals,
-                'sops': sops
+                'sops': sops,
+                'closing_notes': closing_notes
             }
         return st.session_state.demo_data
     except Exception as e:

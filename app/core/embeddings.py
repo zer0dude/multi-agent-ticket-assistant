@@ -221,6 +221,199 @@ def find_similar_tickets(
     manager = EmbeddingManager(embeddings_file)
     return manager.find_similar_tickets(query_embedding, top_k)
 
+class TicketEmbeddingSystem:
+    """High-level ticket embedding system for research agents"""
+    
+    def __init__(self):
+        """Initialize the ticket embedding system"""
+        self.embedding_manager = EmbeddingManager()
+        self.embeddings_cache = {}  # For compatibility with research agents
+        
+        # Load existing embeddings into cache
+        self._load_embeddings_to_cache()
+    
+    def _load_embeddings_to_cache(self):
+        """Load embeddings into cache format expected by research agents"""
+        for ticket_id, embedding_obj in self.embedding_manager.embeddings.items():
+            self.embeddings_cache[ticket_id] = embedding_obj.embedding
+    
+    def find_similar_tickets(self, query_ticket, historical_tickets):
+        """
+        Find similar tickets for research agents
+        
+        Args:
+            query_ticket: The ticket to find similarities for
+            historical_tickets: List of historical tickets to search in
+            
+        Returns:
+            TicketSimilarityResult object
+        """
+        from app.core.research_models import TicketSimilarityResult, SimilarTicket
+        
+        try:
+            # Generate embedding for query ticket if needed
+            query_embedding = self._get_or_generate_embedding(query_ticket)
+            
+            # Find similar tickets using embedding manager with optimized threshold
+            similar_results = self.embedding_manager.find_similar_tickets(
+                query_embedding, top_k=3, min_similarity=0.60  # Raised minimum threshold
+            )
+            
+            # Filter to only include historical tickets that exist in our dataset
+            historical_ticket_ids = {t.ticket_id for t in historical_tickets}
+            filtered_results = [r for r in similar_results if r.ticket_id in historical_ticket_ids]
+            
+            # Further filter for high similarity (75%+) for "high similarity detection"
+            high_similarity_results = [r for r in filtered_results if r.similarity >= 0.75]
+            
+            if high_similarity_results:
+                # Convert to SimilarTicket objects with German key learnings
+                similar_tickets = []
+                for result in high_similarity_results:
+                    # Find the actual ticket object
+                    historical_ticket = next((t for t in historical_tickets if t.ticket_id == result.ticket_id), None)
+                    
+                    if historical_ticket:
+                        # Generate German key learnings from resolution
+                        key_learnings = self._generate_german_key_learnings(historical_ticket)
+                        
+                        similar_ticket = SimilarTicket(
+                            ticket_id=result.ticket_id,
+                            title=historical_ticket.title,
+                            similarity_score=result.similarity,
+                            resolution_summary=getattr(historical_ticket, 'resolution', 'Lösung nicht verfügbar')[:200],
+                            key_learnings=key_learnings
+                        )
+                        similar_tickets.append(similar_ticket)
+                
+                return TicketSimilarityResult(
+                    similar_tickets_found=True,
+                    similar_tickets=similar_tickets,
+                    similarity_threshold_used=0.75,
+                    search_summary=f"Gefunden: {len(similar_tickets)} ähnliche Tickets mit Ähnlichkeit ≥75%"
+                )
+            
+            # Check for medium similarity (60-74%) if no high similarity found
+            elif filtered_results:
+                similar_tickets = []
+                for result in filtered_results:
+                    historical_ticket = next((t for t in historical_tickets if t.ticket_id == result.ticket_id), None)
+                    
+                    if historical_ticket:
+                        key_learnings = self._generate_german_key_learnings(historical_ticket)
+                        
+                        similar_ticket = SimilarTicket(
+                            ticket_id=result.ticket_id,
+                            title=historical_ticket.title,
+                            similarity_score=result.similarity,
+                            resolution_summary=getattr(historical_ticket, 'resolution', 'Lösung nicht verfügbar')[:200],
+                            key_learnings=key_learnings
+                        )
+                        similar_tickets.append(similar_ticket)
+                
+                return TicketSimilarityResult(
+                    similar_tickets_found=True,
+                    similar_tickets=similar_tickets,
+                    similarity_threshold_used=0.60,
+                    search_summary=f"Gefunden: {len(similar_tickets)} verwandte Tickets mit mittlerer Ähnlichkeit (60-74%)"
+                )
+            else:
+                return TicketSimilarityResult(
+                    similar_tickets_found=False,
+                    similar_tickets=[],
+                    similarity_threshold_used=0.75,
+                    search_summary="Keine ähnlichen Tickets über der Schwelle gefunden"
+                )
+                
+        except Exception as e:
+            return TicketSimilarityResult(
+                similar_tickets_found=False,
+                similar_tickets=[],
+                similarity_threshold_used=0.75,
+                search_summary=f"Fehler bei der Ähnlichkeitssuche: {str(e)}"
+            )
+    
+    def _get_or_generate_embedding(self, ticket):
+        """Get or generate embedding for a ticket"""
+        # First check if we already have an embedding
+        if ticket.ticket_id in self.embeddings_cache:
+            return self.embeddings_cache[ticket.ticket_id]
+        
+        # Generate new embedding using LLM client
+        try:
+            from app.core.llm_client import LLMClient
+            client = LLMClient()
+            
+            # Create content for embedding (same strategy as generate_ticket_embeddings.py)
+            content = f"Title: {ticket.title}\n\nBody: {ticket.body}"
+            if hasattr(ticket, 'resolution') and ticket.resolution:
+                content += f"\n\nResolution: {ticket.resolution}"
+            
+            # Generate embedding
+            embedding = client.get_embedding(content)
+            
+            # Cache the result
+            self.embeddings_cache[ticket.ticket_id] = embedding
+            
+            return embedding
+            
+        except Exception as e:
+            print(f"Error generating embedding for ticket {ticket.ticket_id}: {e}")
+            # Return a dummy embedding vector of correct size
+            return [0.0] * 1536
+    
+    def _generate_german_key_learnings(self, historical_ticket):
+        """Generate German key learnings from historical ticket resolution"""
+        try:
+            # Extract key insights from resolution and ticket summary
+            resolution = getattr(historical_ticket, 'resolution', '')
+            summary = getattr(historical_ticket, 'summary', {})
+            
+            if summary and isinstance(summary, dict):
+                # Use structured summary if available
+                root_cause = summary.get('root_cause', '')
+                steps_taken = summary.get('steps_taken', '')
+                future_cues = summary.get('future_cues', [])
+                
+                key_points = []
+                
+                if root_cause:
+                    key_points.append(f"Ursache: {root_cause}")
+                
+                if steps_taken:
+                    key_points.append(f"Lösung: {steps_taken}")
+                
+                if future_cues and isinstance(future_cues, list):
+                    # Take first 2 future cues for key learnings
+                    for cue in future_cues[:2]:
+                        key_points.append(f"Empfehlung: {cue}")
+                
+                if key_points:
+                    return '; '.join(key_points)
+            
+            # Fallback: extract key insights from resolution text
+            if resolution:
+                # Simple extraction for demo - in production would use LLM
+                if 'Saughöhe' in resolution and 'reduziert' in resolution:
+                    return "Saughöhe prüfen und reduzieren falls zu hoch; Installationsrichtlinien beachten"
+                elif 'Wartung' in resolution and 'Reinigung' in resolution:
+                    return "Regelmäßige Wartung erforderlich; Spezielle Reinigung für hochviskose Medien"
+                elif 'Temperatur' in resolution:
+                    return "Mediumtemperatur überwachen; Bei hochviskosen Medien Beheizung nutzen"
+                else:
+                    # Generic learning
+                    return "Technische Spezifikationen beachten; Bei Problemen Handbuch konsultieren"
+            
+            return "Strukturierte Problemlösung anwenden; Dokumentation für zukünftige Fälle nutzen"
+            
+        except Exception as e:
+            return "Erfahrungswerte aus ähnlichen Fällen anwenden"
+    
+    def generate_embeddings_for_tickets(self, tickets):
+        """Generate embeddings for a list of tickets (compatibility method)"""
+        for ticket in tickets:
+            self._get_or_generate_embedding(ticket)
+
 # Example usage functions for testing
 
 def demo_similarity_search():

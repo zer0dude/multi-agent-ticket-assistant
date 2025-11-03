@@ -86,10 +86,12 @@ class ResearchOrchestrator:
                     customer_status="Error in research process",
                     technical_findings="Unable to complete research",
                     historical_context="Research incomplete",
+                    initial_cause_assessment=None,
                     confidence_assessment=ConfidenceLevel.LOW,
-                    recommended_next_steps=["Manual investigation required"],
-                    open_questions=["Research process failed - manual review needed"],
-                    urgency_level="medium"
+                    confidence_explanation="Systemfehler - vollständige Recherche nicht möglich",
+                    urgency_level="medium",
+                    urgency_explanation="Standard-Dringlichkeit aufgrund von Systemfehlern",
+                    relevant_manuals=[]
                 ),
                 processing_time_seconds=processing_time,
                 errors_encountered=errors
@@ -178,41 +180,42 @@ class ResearchOrchestrator:
         try:
             # Create prompt for LLM
             prompt = f"""
-You are a technical support expert analyzing a product manual to find sections relevant to a customer issue.
+Sie sind ein Technischer Support-Experte, der ein Produkthandbuch analysiert, um für ein Kundenproblem relevante Abschnitte zu finden.
 
-CUSTOMER ISSUE:
-Title: {ticket.title}
-Description: {ticket.body}
-Product: {', '.join(ticket.related_skus)}
-Priority: {ticket.priority.value}
+KUNDENPROBLEM:
+Titel: {ticket.title}
+Beschreibung: {ticket.body}
+Produkt: {', '.join(ticket.related_skus)}
+Priorität: {ticket.priority.value}
 
-MANUAL CONTENT:
+HANDBUCH-INHALT:
 {manual.content}
 
-TASK:
-Analyze the manual and identify the most relevant sections for this customer issue. Return your response as a JSON object with this structure:
+AUFGABE:
+Analysieren Sie das Handbuch und identifizieren Sie die relevantesten Abschnitte für dieses Kundenproblem. Antworten Sie mit einem JSON-Objekt in dieser Struktur:
 
 {{
     "relevant_sections": [
         {{
-            "section_title": "Section name from the manual",
-            "content_excerpt": "Key relevant excerpt (max 150 words)",
+            "section_title": "Abschnittstitel aus dem Handbuch",
+            "content_excerpt": "Wichtiger relevanter Auszug (max. 150 Wörter)",
             "relevance_score": 0.85,
-            "relevance_reason": "Why this section is relevant"
+            "relevance_reason": "Warum dieser Abschnitt relevant ist"
         }}
     ]
 }}
 
-GUIDELINES:
-- Only include sections with relevance_score >= 0.6
-- Focus on sections that directly address the issue symptoms
-- Include troubleshooting, installation, and technical specifications if relevant
-- Provide specific excerpts, not generic descriptions
-- Maximum 5 sections
+RICHTLINIEN:
+- Nur Abschnitte mit relevance_score >= 0.6 einschließen
+- Fokus auf Abschnitte, die sich direkt mit den Problemsymptomen befassen
+- Fehlerbehebung, Installation und technische Spezifikationen einbeziehen falls relevant
+- Spezifische Auszüge bereitstellen, keine allgemeinen Beschreibungen
+- Maximal 5 Abschnitte
+- Antworten Sie auf Deutsch in den Textfeldern
 """
 
             messages = [
-                {"role": "system", "content": "You are a technical manual analysis expert. Always respond with valid JSON."},
+                {"role": "system", "content": "Sie sind ein Experte für technische Handbuch-Analyse. Antworten Sie immer mit gültigem JSON."},
                 {"role": "user", "content": prompt}
             ]
             
@@ -251,7 +254,7 @@ GUIDELINES:
             return TicketSimilarityResult(
                 similar_tickets_found=False,
                 similar_tickets=[],
-                search_summary=f"Error during similarity search: {str(e)}"
+                search_summary=f"Fehler bei der Ähnlichkeitssuche: {str(e)}"
             )
     
     def _generate_research_summary(self, ticket: Ticket, customer_result: CustomerMatchResult, 
@@ -263,113 +266,263 @@ GUIDELINES:
             context = self._prepare_research_context(ticket, customer_result, manual_results, similarity_result)
             
             prompt = f"""
-You are a senior technical support analyst creating a comprehensive research summary for a customer ticket.
+Sie sind ein Senior-Technischer Support-Analyst, der eine umfassende Recherche-Zusammenfassung für ein Kundenticket erstellt.
 
 {context}
 
-TASK:
-Create a detailed research summary that synthesizes all findings. Return your response as a JSON object:
+AUFGABE:
+Erstellen Sie eine detaillierte Recherche-Zusammenfassung, die alle Erkenntnisse zusammenfasst. Antworten Sie mit einem JSON-Objekt:
 
 {{
-    "customer_status": "Brief summary of customer identification results",
-    "technical_findings": "Key technical insights from manuals and documentation", 
-    "historical_context": "Relevant insights from similar past tickets",
-    "probable_root_cause": "Most likely root cause based on all evidence (or null if unclear)",
+    "customer_status": "Kurze Zusammenfassung der Kundenidentifikations-Ergebnisse",
+    "technical_findings": "Wichtige technische Erkenntnisse aus Handbüchern und Dokumentation", 
+    "historical_context": "Relevante Erkenntnisse aus ähnlichen früheren Tickets",
+    "initial_cause_assessment": "Erste Ursacheneinschätzung basierend auf verfügbaren Indizien - formuliert mit angemessener Unsicherheit (oder null wenn völlig unklar)",
     "confidence_assessment": "high|medium|low",
-    "recommended_next_steps": ["step 1", "step 2", "step 3"],
-    "open_questions": ["question 1", "question 2"],
-    "urgency_level": "low|medium|high|critical"
+    "confidence_explanation": "Begründung für das Vertrauensniveau basierend auf Datenverfügbarkeit und Übereinstimmung der Quellen",
+    "urgency_level": "low|medium|high|critical",
+    "urgency_explanation": "Begründung für die Dringlichkeitseinstufung basierend auf Business-Impact und technischen Faktoren"
 }}
 
-GUIDELINES:
-- Synthesize information from all sources
-- Be specific and actionable
-- Identify patterns and connections
-- Highlight high-confidence findings
-- Note gaps requiring human input
-- Consider customer context (support tier, history, etc.)
+RICHTLINIEN:
+- Informationen aus allen Quellen zusammenfassen
+- Bei der Ursacheneinschätzung Unsicherheit sprachlich ausdrücken (z.B. "könnte darauf hindeuten", "möglicherweise verursacht durch")
+- Vertrauen und Dringlichkeit ausführlich begründen
+- Erkenntnisse mit hoher Zuverlässigkeit hervorheben
+- Kundenkontext berücksichtigen (Support-Stufe, Historie, etc.)
+- Alle Textantworten auf Deutsch verfassen
+- WICHTIG: Keine nächsten Schritte oder offenen Fragen - diese werden in der Planungsphase erstellt
 """
 
             messages = [
-                {"role": "system", "content": "You are a senior technical support analyst with deep expertise in troubleshooting and customer service. Always respond with valid JSON."},
+                {"role": "system", "content": "Sie sind ein Senior-Technischer Support-Analyst mit tiefgreifender Expertise in Fehlerbehebung und Kundenservice. Antworten Sie immer mit gültigem JSON."},
                 {"role": "user", "content": prompt}
             ]
             
             # Use GPT-4o (full model) for high-quality synthesis
-            response = self.llm_client.structured_completion(messages, {}, model=self.llm_client.gpt_full)
+            response = self.llm_client.structured_completion(messages, {}, model=self.llm_client.full_model)
             
-            # Create ResearchSummary object
-            return ResearchSummary(
-                customer_status=response.get("customer_status", "Customer identification incomplete"),
-                technical_findings=response.get("technical_findings", "Limited technical findings available"),
-                historical_context=response.get("historical_context", "No relevant historical context found"),
-                probable_root_cause=response.get("probable_root_cause"),
-                confidence_assessment=ConfidenceLevel(response.get("confidence_assessment", "low")),
-                recommended_next_steps=response.get("recommended_next_steps", ["Manual investigation required"]),
-                open_questions=response.get("open_questions", ["Further investigation needed"]),
-                urgency_level=response.get("urgency_level", "medium")
-            )
+            # Validate and sanitize LLM response
+            return self._create_validated_research_summary(response, manual_results)
             
         except Exception as e:
             return ResearchSummary(
                 customer_status="Error in research summary generation",
                 technical_findings=f"Research summary failed: {str(e)}",
                 historical_context="Unable to generate summary",
+                initial_cause_assessment=None,
                 confidence_assessment=ConfidenceLevel.LOW,
-                recommended_next_steps=["Manual review required due to system error"],
-                open_questions=["System error - manual investigation needed"],
-                urgency_level="medium"
+                confidence_explanation="Systemfehler - Zusammenfassung konnte nicht erstellt werden",
+                urgency_level="medium",
+                urgency_explanation="Standard-Dringlichkeit aufgrund von Systemfehlern",
+                relevant_manuals=[]
             )
     
     def _prepare_research_context(self, ticket: Ticket, customer_result: CustomerMatchResult,
                                 manual_results: List[ManualSearchResult], 
                                 similarity_result: TicketSimilarityResult) -> str:
-        """Prepare comprehensive context for research summary"""
-        context = f"""
+        """Prepare comprehensive context for research summary with robust error handling"""
+        try:
+            # Safe ticket information extraction
+            ticket_id = getattr(ticket, 'ticket_id', 'Unknown')
+            title = getattr(ticket, 'title', 'No title')
+            body = getattr(ticket, 'body', 'No description')
+            related_skus = getattr(ticket, 'related_skus', [])
+            priority = getattr(ticket, 'priority', None)
+            customer_id = getattr(ticket, 'customer_id', 'Unknown')
+            created_by = getattr(ticket, 'created_by', 'Unknown')
+            
+            context = f"""
 TICKET INFORMATION:
-ID: {ticket.ticket_id}
-Title: {ticket.title}
-Description: {ticket.body}
-Products: {', '.join(ticket.related_skus)}
-Priority: {ticket.priority.value}
-Customer: {ticket.customer_id}
-Created by: {ticket.created_by}
+ID: {ticket_id}
+Title: {title}
+Description: {body}
+Products: {', '.join(related_skus) if related_skus else 'None specified'}
+Priority: {priority.value if priority else 'Unknown'}
+Customer: {customer_id}
+Created by: {created_by}
 
 CUSTOMER IDENTIFICATION RESULTS:
 """
-        
-        if customer_result.customer_id:
-            context += f"✅ Customer matched: {customer_result.customer_name} (ID: {customer_result.customer_id})\n"
-            context += f"Confidence: {customer_result.confidence_score:.1%}\n"
-            context += f"Reason: {customer_result.match_reason}\n"
-            if customer_result.relevant_data:
-                context += f"Support Tier: {customer_result.relevant_data.get('support_tier', 'Unknown')}\n"
-                if 'purchased_products' in customer_result.relevant_data:
-                    products = [p['sku'] for p in customer_result.relevant_data['purchased_products']]
-                    context += f"Customer's Products: {', '.join(products)}\n"
-        else:
-            context += f"❌ No customer match found: {customer_result.match_reason}\n"
-        
-        context += "\nMANUAL SEARCH RESULTS:\n"
-        for manual_result in manual_results:
-            context += f"Product {manual_result.product_sku}: "
-            if manual_result.manual_found:
-                context += f"Manual found, {len(manual_result.relevant_sections)} relevant sections\n"
-                for section in manual_result.relevant_sections:
-                    context += f"  - {section.section_title}: {section.content_excerpt[:100]}...\n"
+            
+            # Safe customer result processing
+            if customer_result and getattr(customer_result, 'customer_id', None):
+                customer_name = getattr(customer_result, 'customer_name', 'Unknown')
+                confidence = getattr(customer_result, 'confidence_score', 0.0)
+                reason = getattr(customer_result, 'match_reason', 'No reason provided')
+                
+                context += f"✅ Customer matched: {customer_name} (ID: {customer_result.customer_id})\n"
+                context += f"Confidence: {confidence:.1%}\n"
+                context += f"Reason: {reason}\n"
+                
+                # Safe relevant data extraction
+                relevant_data = getattr(customer_result, 'relevant_data', None)
+                if relevant_data and isinstance(relevant_data, dict):
+                    support_tier = relevant_data.get('support_tier', 'Unknown')
+                    context += f"Support Tier: {support_tier}\n"
+                    
+                    # Safe purchased products extraction
+                    purchased_products = relevant_data.get('purchased_products', [])
+                    if purchased_products and isinstance(purchased_products, list):
+                        try:
+                            products = [p.get('sku', 'Unknown') for p in purchased_products if isinstance(p, dict)]
+                            if products:
+                                context += f"Customer's Products: {', '.join(products)}\n"
+                        except (AttributeError, TypeError):
+                            context += "Customer's Products: Unable to extract product information\n"
             else:
-                context += "No manual found\n"
-        
-        context += f"\nSIMILAR TICKETS:\n"
-        if similarity_result.similar_tickets_found:
-            context += f"Found {len(similarity_result.similar_tickets)} similar tickets:\n"
-            for similar in similarity_result.similar_tickets:
-                context += f"  - {similar.ticket_id}: {similar.title} ({similar.similarity_score:.1%} similar)\n"
-                context += f"    Resolution: {similar.resolution_summary[:100]}...\n"
-        else:
-            context += "No similar tickets found\n"
-        
-        return context
+                reason = getattr(customer_result, 'match_reason', 'Unknown error') if customer_result else 'Customer result missing'
+                context += f"❌ No customer match found: {reason}\n"
+            
+            # Safe manual results processing
+            context += "\nMANUAL SEARCH RESULTS:\n"
+            if manual_results and isinstance(manual_results, list):
+                for manual_result in manual_results:
+                    if not manual_result:
+                        continue
+                        
+                    product_sku = getattr(manual_result, 'product_sku', 'Unknown')
+                    manual_found = getattr(manual_result, 'manual_found', False)
+                    relevant_sections = getattr(manual_result, 'relevant_sections', [])
+                    
+                    context += f"Product {product_sku}: "
+                    if manual_found and relevant_sections:
+                        context += f"Manual found, {len(relevant_sections)} relevant sections\n"
+                        for section in relevant_sections[:3]:  # Limit to first 3 sections
+                            section_title = getattr(section, 'section_title', 'Unknown Section')
+                            content_excerpt = getattr(section, 'content_excerpt', '')
+                            # Safely truncate content
+                            safe_excerpt = content_excerpt[:100] + "..." if len(content_excerpt) > 100 else content_excerpt
+                            context += f"  - {section_title}: {safe_excerpt}\n"
+                    else:
+                        context += "No manual found or no relevant sections\n"
+            else:
+                context += "No manual search results available\n"
+            
+            # Safe similarity results processing
+            context += "\nSIMILAR TICKETS:\n"
+            if similarity_result and getattr(similarity_result, 'similar_tickets_found', False):
+                similar_tickets = getattr(similarity_result, 'similar_tickets', [])
+                if similar_tickets:
+                    context += f"Found {len(similar_tickets)} similar tickets:\n"
+                    for similar in similar_tickets[:3]:  # Limit to first 3 tickets
+                        if not similar:
+                            continue
+                            
+                        ticket_id = getattr(similar, 'ticket_id', 'Unknown')
+                        title = getattr(similar, 'title', 'No title')
+                        similarity_score = getattr(similar, 'similarity_score', 0.0)
+                        resolution = getattr(similar, 'resolution_summary', '')
+                        
+                        context += f"  - {ticket_id}: {title} ({similarity_score:.1%} similar)\n"
+                        # Safely truncate resolution
+                        safe_resolution = resolution[:100] + "..." if len(resolution) > 100 else resolution
+                        context += f"    Resolution: {safe_resolution or 'No resolution available'}\n"
+                else:
+                    context += "Similar tickets found but details unavailable\n"
+            else:
+                context += "No similar tickets found\n"
+            
+            return context
+            
+        except Exception as e:
+            # Fallback context if everything fails
+            return f"""
+TICKET INFORMATION:
+Error preparing research context: {str(e)}
+
+FALLBACK CONTEXT:
+This appears to be a support ticket requiring manual investigation due to context preparation failure.
+Manual analysis of the ticket data will be required.
+"""
+    
+    def _create_validated_research_summary(self, response: Dict[str, Any], manual_results: List[ManualSearchResult]) -> ResearchSummary:
+        """Create and validate ResearchSummary from LLM response"""
+        try:
+            # Validate response structure
+            if not response or not isinstance(response, dict):
+                raise ValueError("Invalid response format from LLM")
+            
+            # Extract and validate each field
+            customer_status = str(response.get("customer_status", "Kundenidentifikation unvollständig"))
+            technical_findings = str(response.get("technical_findings", "Begrenzte technische Erkenntnisse verfügbar"))
+            historical_context = str(response.get("historical_context", "Kein relevanter historischer Kontext gefunden"))
+            
+            # Handle initial_cause_assessment (can be null)
+            initial_cause_assessment = response.get("initial_cause_assessment")
+            if initial_cause_assessment is not None:
+                initial_cause_assessment = str(initial_cause_assessment).strip()
+                if not initial_cause_assessment or initial_cause_assessment.lower() in ["null", "none", ""]:
+                    initial_cause_assessment = None
+            
+            # Validate confidence_assessment
+            confidence_raw = response.get("confidence_assessment", "low")
+            try:
+                confidence_assessment = ConfidenceLevel(confidence_raw.lower())
+            except (ValueError, AttributeError):
+                print(f"Invalid confidence level: {confidence_raw}, defaulting to LOW")
+                confidence_assessment = ConfidenceLevel.LOW
+            
+            # Extract explanations
+            confidence_explanation = str(response.get("confidence_explanation", "Keine Begründung verfügbar"))
+            urgency_explanation = str(response.get("urgency_explanation", "Keine Begründung verfügbar"))
+            
+            # Validate urgency_level
+            urgency_raw = response.get("urgency_level", "medium")
+            valid_urgency_levels = ["low", "medium", "high", "critical"]
+            if urgency_raw and urgency_raw.lower() in valid_urgency_levels:
+                urgency_level = urgency_raw.lower()
+            else:
+                print(f"Invalid urgency level: {urgency_raw}, defaulting to medium")
+                urgency_level = "medium"
+            
+            # Extract relevant_manuals from manual search results for UI modal display
+            relevant_manuals = []
+            for manual_result in manual_results:
+                if manual_result.manual_found and manual_result.relevant_sections:
+                    manual_data = {
+                        "sku": manual_result.product_sku,
+                        "sections": []
+                    }
+                    
+                    for section in manual_result.relevant_sections:
+                        section_data = {
+                            "title": section.section_title,
+                            "content": section.content_excerpt,
+                            "relevance_score": section.relevance_score,
+                            "relevance_reason": section.relevance_reason
+                        }
+                        manual_data["sections"].append(section_data)
+                    
+                    relevant_manuals.append(manual_data)
+            
+            # Create validated ResearchSummary
+            return ResearchSummary(
+                customer_status=customer_status,
+                technical_findings=technical_findings,
+                historical_context=historical_context,
+                initial_cause_assessment=initial_cause_assessment,
+                confidence_assessment=confidence_assessment,
+                confidence_explanation=confidence_explanation,
+                urgency_level=urgency_level,
+                urgency_explanation=urgency_explanation,
+                relevant_manuals=relevant_manuals
+            )
+            
+        except Exception as e:
+            print(f"Error validating research summary response: {e}")
+            # Return fallback summary
+            return ResearchSummary(
+                customer_status="Fehler bei der Zusammenfassungsgenerierung",
+                technical_findings=f"Validierungsfehler: {str(e)}",
+                historical_context="Zusammenfassung konnte nicht erstellt werden",
+                initial_cause_assessment=None,
+                confidence_assessment=ConfidenceLevel.LOW,
+                confidence_explanation="Systemfehler - Validierung fehlgeschlagen",
+                urgency_level="medium",
+                urgency_explanation="Standard-Dringlichkeit aufgrund von Systemfehlern",
+                relevant_manuals=[]
+            )
     
     def _create_manual_summary(self, sections: List[ManualSection], product_sku: str) -> str:
         """Create summary of manual search results"""

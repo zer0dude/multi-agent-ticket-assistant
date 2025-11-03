@@ -1,0 +1,30 @@
+{
+  "T-EX1": {
+    "primary_solution": "Saughöhe reduziert und Ansaugleitung optimiert",
+    "steps_taken": [
+      "Saughöhe von 2m auf 1,2m reduziert (Pumpen-Spezifikation)",
+      "Ansaugleitung auf Undichtigkeiten geprüft und repariert", 
+      "Laufrad gereinigt (Verunreinigungen entfernt)",
+      "Drucktest durchgeführt - jetzt 2,1 bar Ausgangsdruck"
+    ],
+    "challenges_encountered": [
+      "Anlagenumbau für Saughöhen-Reduktion erforderlich",
+      "Pfeifgeräusch durch Kavitation - behoben nach Saughöhen-Anpassung"
+    ],
+    "customer_feedback": "Sehr zufrieden, Produktionslinie läuft wieder normal"
+  },
+  "T-EX2": {
+    "primary_solution": "Temperaturmanagement und Pumpen-Konfiguration angepasst",
+    "steps_taken": [
+      "Betriebstemperatur auf 65°C erhöht (Viskositäts-Reduktion)",
+      "Pumpendrehzahl von 100% auf 60% reduziert",
+      "Spezielle Dichtungen für hochviskose Medien installiert", 
+      "Spülzyklen alle 8 Minuten implementiert"
+    ],
+    "challenges_encountered": [
+      "Balance zwischen Temperatur und Produktqualität finden",
+      "Intermittierende Probleme schwierig zu reproduzieren"
+    ],
+    "customer_feedback": "Läuft seit 48h stabil ohne Unterbrechungen"
+  }
+}

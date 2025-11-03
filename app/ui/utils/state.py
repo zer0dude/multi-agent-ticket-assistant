@@ -48,6 +48,10 @@ def update_workflow_state(updates: Dict[str, Any]):
 
 def advance_to_stage(stage: str):
     """Advance workflow to next stage"""
+    # Ensure workflow_state exists before accessing it
+    if 'workflow_state' not in st.session_state:
+        initialize_session_state()
+    
     current_stage = st.session_state.workflow_state['current_stage']
     
     # Add current stage to completed
@@ -127,7 +131,7 @@ def get_stage_status(stage: str) -> str:
 
 
 def reset_workflow():
-    """Reset workflow to initial state"""
+    """Reset workflow to initial state (DEPRECATED - use complete_workflow_reset)"""
     st.session_state.workflow_state = {
         'current_stage': 'context',
         'completed_stages': set(),
@@ -138,6 +142,84 @@ def reset_workflow():
         'execution_results': None,
         'summary': None
     }
+
+
+def complete_workflow_reset():
+    """Nuclear reset - clear all session state except Streamlit internals"""
+    
+    try:
+        # NUCLEAR OPTION: Clear everything except Streamlit internals
+        streamlit_internal_prefixes = {
+            '_',           # Streamlit internal keys typically start with underscore
+            'FormSubmitter',
+            'file_uploader'
+        }
+        
+        # Get debug mode before clearing (to preserve user preference)
+        debug_mode = False
+        if 'config' in st.session_state:
+            debug_mode = st.session_state.config.get('debug_mode', False)
+        
+        # Clear all non-internal keys
+        keys_to_delete = []
+        for key in list(st.session_state.keys()):
+            # Preserve keys that start with underscore or known Streamlit internals
+            is_internal = any(key.startswith(prefix) for prefix in streamlit_internal_prefixes)
+            if not is_internal:
+                keys_to_delete.append(key)
+        
+        # Delete all identified keys
+        for key in keys_to_delete:
+            del st.session_state[key]
+        
+        # Force complete reinitialization from scratch
+        initialize_session_state()
+        
+        # Restore debug mode preference
+        st.session_state.config['debug_mode'] = debug_mode
+        
+    except Exception as e:
+        # Safety fallback: manual key clearing if nuclear option fails
+        st.warning(f"Nuclear reset encountered issue, using safe fallback: {e}")
+        manual_key_reset()
+
+
+def manual_key_reset():
+    """Fallback manual reset for safety (original approach)"""
+    
+    # Known cache keys to clear (fallback list)
+    cache_keys_to_clear = [
+        'demo_data', 'demo_data_loaded', 'research_results', 'embeddings_cache',
+        'manual_search_cache', 'selected_ticket_cache', 'customer_search_cache',
+        'similarity_search_cache', 'planning_results', 'execution_results',
+        'closing_results', 'ticket_analysis_cache', 'ai_responses_cache',
+        'llm_client_cache', 'context_data', 'ticket_input_data', 'plan_approved',
+        'execution_status'
+    ]
+    
+    # Preserve debug mode
+    debug_mode = st.session_state.config.get('debug_mode', False) if 'config' in st.session_state else False
+    
+    # Reset workflow state
+    st.session_state.workflow_state = {
+        'current_stage': 'context',
+        'completed_stages': set(),
+        'selected_ticket': None,
+        'research_results': None,
+        'plan': None,
+        'plan_approved': False,
+        'execution_results': None,
+        'summary': None
+    }
+    
+    # Clear identified cache keys
+    for key in cache_keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
+    
+    # Reset config to minimal defaults
+    st.session_state.config = {'debug_mode': debug_mode}
+    st.session_state.demo_data_loaded = False
 
 
 def get_config() -> Dict[str, Any]:

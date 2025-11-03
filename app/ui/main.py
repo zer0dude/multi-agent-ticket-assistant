@@ -21,6 +21,7 @@ from components.ticket import render_ticket_section
 from components.research import render_research_section
 from components.planning import render_planning_section
 from components.execution import render_execution_section
+from components.closing import render_closing_section
 from utils.state import initialize_session_state, get_workflow_state, navigate_to_stage, get_stage_status
 from utils.german import GERMAN_TEXT
 
@@ -110,6 +111,8 @@ def render_main_content():
         render_planning_section()
     elif workflow_state.get('current_stage') == 'execution':
         render_execution_section()
+    elif workflow_state.get('current_stage') == 'closing':
+        render_closing_section()
     else:
         # Default: context stage
         render_context_section()
@@ -169,11 +172,14 @@ def load_demo_data():
     try:
         if 'demo_data' not in st.session_state:
             crm_data, tickets, manuals, sops = load_all_data()
+            from app.core.data import load_closing_notes
+            closing_notes = load_closing_notes()
             st.session_state.demo_data = {
                 'crm': crm_data,
                 'tickets': tickets,
                 'manuals': manuals,
-                'sops': sops
+                'sops': sops,
+                'closing_notes': closing_notes
             }
         return st.session_state.demo_data
     except Exception as e:

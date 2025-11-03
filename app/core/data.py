@@ -128,6 +128,16 @@ class DataLoader:
         except Exception as e:
             raise ValueError(f"Error loading communication SOPs: {e}")
     
+    def load_closing_notes(self) -> Dict[str, Any]:
+        """Load demo closing notes from JSON file"""
+        closing_notes_file = self.data_path / "closing_notes.json"
+        
+        try:
+            with open(closing_notes_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            raise ValueError(f"Error loading closing notes: {e}")
+    
     def save_ticket(self, ticket: Ticket) -> None:
         """Save or update a ticket in the JSONL file"""
         tickets_file = self.data_path / "tickets.jsonl"
@@ -239,13 +249,19 @@ class DataLoader:
 
 # Convenience functions for easy access
 def load_all_data(data_path: str = "data"):
-    """Load all data and return as tuple"""
+    """Load all data and return as tuple (4 values to maintain compatibility)"""
     loader = DataLoader(data_path)
     crm_data = loader.load_crm_data()
     tickets = loader.load_tickets()
     manuals = loader.load_manuals()
     sops = loader.load_communication_sops()
     return crm_data, tickets, manuals, sops
+
+
+def load_closing_notes(data_path: str = "data"):
+    """Load closing notes separately to avoid breaking existing code"""
+    loader = DataLoader(data_path)
+    return loader.load_closing_notes()
 
 
 def validate_demo_data(data_path: str = "data"):

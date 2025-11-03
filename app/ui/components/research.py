@@ -99,7 +99,7 @@ def conduct_research(ticket):
         
         # Step 4: Research Summary
         status_text.text("📊 Schritt 4: Erstelle Recherche-Zusammenfassung...")
-        step4_progress.progress(0.6, text="Schritt 4: KI-Analyse mit GPT-4o...")
+        step4_progress.progress(0.6, text="Schritt 4: KI-Analyse...")
         
         research_summary = research_orchestrator._generate_research_summary(
             ticket, customer_result, manual_results, similarity_result
@@ -237,31 +237,85 @@ def render_similarity_results(similarity_result):
 
 
 def render_research_summary(research_summary):
-    """Render the comprehensive research summary"""
-    summary_col1, summary_col2 = st.columns([3, 1])
+    """Render the comprehensive research summary with ticket context"""
     
-    with summary_col1:
-        st.markdown("### 🎯 Recherche-Zusammenfassung")
-        
-        # Customer status
-        st.markdown("**👥 Kundenstatus:**")
-        st.markdown(research_summary.customer_status)
-        
-        # Technical findings
+    # Get current ticket for context display
+    workflow_state = get_workflow_state()
+    selected_ticket = workflow_state.get('selected_ticket')
+    
+    # Ticket Context Section
+    st.markdown("### 📋 Ursprüngliches Ticket")
+    with st.expander("🔍 Ticket-Details anzeigen", expanded=False):
+        if selected_ticket:
+            # Safe attribute access for Pydantic model
+            ticket_id = getattr(selected_ticket, 'ticket_id', 'Unknown')
+            title = getattr(selected_ticket, 'title', 'No title')
+            body = getattr(selected_ticket, 'body', 'No description')
+            customer_id = getattr(selected_ticket, 'customer_id', 'Unknown')
+            
+            # Handle priority enum safely
+            priority = getattr(selected_ticket, 'priority', None)
+            priority_str = priority.value if priority else 'Unknown'
+            
+            st.markdown(f"**Titel:** {title}")
+            st.markdown(f"**Beschreibung:**")
+            st.markdown(f"> {body}")
+            st.markdown(f"**Priorität:** {priority_str}")
+            st.markdown(f"**Kunde:** {customer_id}")
+        else:
+            st.warning("Ticket-Kontext nicht verfügbar")
+    
+    st.markdown("---")
+    
+    # Research Findings Section
+    st.markdown("### 🎯 Recherche-Ergebnisse")
+    
+    # Customer status
+    st.markdown("**👥 Kundenstatus:**")
+    st.markdown(research_summary.customer_status)
+    
+    # Technical findings with manual modal support
+    technical_col1, technical_col2 = st.columns([4, 1])
+    with technical_col1:
         st.markdown("**🔧 Technische Erkenntnisse:**")
         st.markdown(research_summary.technical_findings)
-        
-        # Historical context
-        st.markdown("**📊 Historischer Kontext:**")
-        st.markdown(research_summary.historical_context)
-        
-        # Probable root cause
-        if research_summary.probable_root_cause:
-            st.markdown("**🎯 Wahrscheinliche Grundursache:**")
-            st.success(research_summary.probable_root_cause)
     
-    with summary_col2:
-        # Confidence and urgency metrics
+    with technical_col2:
+        # Show handbook button for each product in ticket
+        if selected_ticket and hasattr(selected_ticket, 'related_skus'):
+            # Load complete manuals
+            complete_manuals = get_complete_manuals_for_research()
+            
+            for sku in selected_ticket.related_skus:
+                if st.button(f"📖 Handbuch {sku}", key=f"handbook_{sku}"):
+                    render_complete_handbook_modal(
+                        complete_manuals, 
+                        sku, 
+                        f"{sku} Handbuch"
+                    )
+    
+    # Historical context
+    st.markdown("**📊 Historischer Kontext:**")
+    st.markdown(research_summary.historical_context)
+    
+    # Initial cause assessment (softened language)
+    if hasattr(research_summary, 'initial_cause_assessment') and research_summary.initial_cause_assessment:
+        st.markdown("**🎯 Erste Ursacheneinschätzung:**")
+        st.info(research_summary.initial_cause_assessment)
+    elif hasattr(research_summary, 'probable_root_cause') and research_summary.probable_root_cause:
+        # Fallback for old model structure
+        st.markdown("**🎯 Erste Ursacheneinschätzung:**")
+        st.info(research_summary.probable_root_cause)
+    
+    st.markdown("---")
+    
+    # Assessment Section (moved to bottom with explanations)
+    st.markdown("### 📊 Bewertung")
+    
+    assess_col1, assess_col2 = st.columns(2)
+    
+    with assess_col1:
+        # Confidence assessment with direct explanation display
         confidence_colors = {
             "high": "🟢",
             "medium": "🟡", 
@@ -269,11 +323,15 @@ def render_research_summary(research_summary):
         }
         confidence_color = confidence_colors.get(research_summary.confidence_assessment.value, "⚪")
         
-        st.metric(
-            "Vertrauen", 
-            f"{confidence_color} {research_summary.confidence_assessment.value.title()}",
-        )
+        st.markdown("**Einschätzungskonfidenz:**")
+        st.markdown(f"{confidence_color} **{research_summary.confidence_assessment.value.title()}**")
         
+        # Show explanation directly as paragraph
+        if hasattr(research_summary, 'confidence_explanation'):
+            st.markdown(research_summary.confidence_explanation)
+    
+    with assess_col2:
+        # Urgency assessment with direct explanation display
         urgency_colors = {
             "low": "🟢",
             "medium": "🟡",
@@ -282,22 +340,76 @@ def render_research_summary(research_summary):
         }
         urgency_color = urgency_colors.get(research_summary.urgency_level, "⚪")
         
-        st.metric(
-            "Dringlichkeit",
-            f"{urgency_color} {research_summary.urgency_level.title()}"
-        )
+        st.markdown("**Dringlichkeit:**")
+        st.markdown(f"{urgency_color} **{research_summary.urgency_level.title()}**")
+        
+        # Show explanation directly as paragraph
+        if hasattr(research_summary, 'urgency_explanation'):
+            st.markdown(research_summary.urgency_explanation)
+
+
+def get_complete_manuals_for_research():
+    """Load complete manuals - same pattern as context.py"""
+    from app.core.data import load_all_data
+    _, _, manuals, _ = load_all_data()
+    return manuals
+
+
+@st.dialog("Technisches Handbuch")
+def render_complete_handbook_modal(manuals, product_sku, title):
+    """Render complete handbook content in modal - identical to context.py pattern"""
+    st.markdown(f"## {title}")
     
-    # Recommended next steps
-    if research_summary.recommended_next_steps:
-        st.markdown("### 📋 Empfohlene nächste Schritte")
-        for i, step in enumerate(research_summary.recommended_next_steps, 1):
-            st.markdown(f"{i}. {step}")
+    # Find and display ALL manual content for this product
+    manual_content = ""
+    for manual in manuals:
+        if manual.product_sku == product_sku:
+            manual_content += f"### {manual.title}\n\n{manual.content}\n\n"
     
-    # Open questions
-    if research_summary.open_questions:
-        st.markdown("### ❓ " + get_text('open_questions'))
-        for i, question in enumerate(research_summary.open_questions, 1):
-            st.markdown(f"{i}. {question}")
+    if manual_content:
+        st.markdown(manual_content)
+    else:
+        st.info(f"Handbuch für {product_sku} wird geladen...")
+    
+    if st.button("Schließen"):
+        st.rerun()
+
+
+def render_manual_modal(relevant_manuals):
+    """Render manual content in a modal dialog (DEPRECATED - kept for compatibility)"""
+    st.markdown("### 📖 Relevante Handbuch-Abschnitte")
+    
+    if not relevant_manuals:
+        st.info("Keine Handbücher zur Anzeige verfügbar")
+        return
+    
+    # Create tabs for multiple manuals if needed
+    if len(relevant_manuals) > 1:
+        manual_tabs = st.tabs([f"{manual.get('sku', 'Unknown')} Manual" for manual in relevant_manuals])
+        for i, manual_data in enumerate(relevant_manuals):
+            with manual_tabs[i]:
+                _render_single_manual(manual_data)
+    else:
+        _render_single_manual(relevant_manuals[0])
+
+
+def _render_single_manual(manual_data):
+    """Render a single manual's content (DEPRECATED - kept for compatibility)"""
+    sku = manual_data.get('sku', 'Unknown')
+    sections = manual_data.get('sections', [])
+    
+    st.markdown(f"**Produkt:** {sku}")
+    
+    if not sections:
+        st.warning("Keine relevanten Abschnitte verfügbar")
+        return
+    
+    for section in sections:
+        with st.expander(f"📄 {section.get('title', 'Unknown Section')}", expanded=True):
+            st.markdown(f"**Relevanz:** {section.get('relevance_score', 0):.1%}")
+            st.markdown(f"**Grund:** {section.get('relevance_reason', 'No reason provided')}")
+            st.markdown("**Inhalt:**")
+            st.markdown(f"> {section.get('content', 'No content available')}")
 
 
 def render_mock_research_results():
