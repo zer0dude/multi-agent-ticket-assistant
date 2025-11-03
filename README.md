@@ -27,7 +27,6 @@ Experience the demo at: [Streamlit Community Cloud](https://multi-agent-ticket-a
 - **Research Phase**: AI-powered context gathering from CRM, documentation, and historical tickets
 - **Planning Phase**: Human-in-the-loop plan approval with AI-generated risk assessments
 - **Execution Phase**: Automated customer communications and internal documentation
-- **Closing Phase**: Knowledge capture for organizational learning
 
 ### **Retrieval-Augmented Generation (RAG)**
 - **Vector Search**: Semantic similarity matching across technical documentation
@@ -47,24 +46,6 @@ Experience the demo at: [Streamlit Community Cloud](https://multi-agent-ticket-a
 - **Modular Architecture**: Component-based design for easy experimentation
 - **Data-Driven UX**: German localization and authentic business context
 
-## 🏗️ Technical Architecture
-
-```mermaid
-graph TD
-    A[User Interface] --> B[Workflow Orchestrator]
-    B --> C[Research Agent]
-    B --> D[Planning Agent] 
-    B --> E[Execution Agent]
-    B --> F[Closing Agent]
-    
-    C --> G[RAG System]
-    G --> H[Vector Store]
-    G --> I[Document Store]
-    
-    D --> J[Human Approval]
-    E --> K[Communication APIs]
-    F --> L[Knowledge Base]
-```
 
 ### **Agent Responsibilities**
 
