@@ -13,7 +13,7 @@ This portfolio project simulates an intelligent technical support system for **P
 
 ## 🚀 Live Demo
 
-Experience the demo at: [Streamlit Community Cloud](https://multi-agent-ticket-assistant.streamlit.app)
+Experience the demo at: [Streamlit Community Cloud](https://multi-agent-ticket-assistant-rb9rmdpsbp4tvnmvrgxr6j.streamlit.app/)
 
 ## 🎯 Technical Frameworks Demonstrated
 
